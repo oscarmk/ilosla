@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1,target-densitydpi=device-dpi" />
+
+        <link rel="stylesheet" href="css/themes/iloslagos.css" />
+        <link rel="stylesheet" href="css/themes/jquery.mobile.icons.min.css" />
+
+        <link rel="stylesheet" type="text/css" href="css/index.css" />
+        <link rel="stylesheet" type="text/css" href="lib/jquery-mobile/jquery.mobile-1.4.2.min.css">
+        <link rel="stylesheet" href="css/themes/iloslagos.css" />
+        <link rel="stylesheet" href="css/themes/jquery.mobile.icons.min.css" />
+        <link rel="stylesheet" type="text/css" href="css/style.css" />
+
+        <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBxs2pK1Boeo0LN-1W7QMxNhX0GiTmLhA4&sensor=true"></script>
+        <script type="text/javascript" src="lib/jquery/jquery-1.11.0.min.js"></script>
+        <script type="text/javascript" src="lib/jquery-mobile/jquery.mobile-1.4.2.min.js"></script>
+        <script type="text/javascript" src="js/index.js"></script>
+        <script type="text/javascript" src="cordova.js"></script>
+        <script type="text/javascript">
+            app.initialize();
+        </script>
+        <script>
+            var map;
+            var watchID=null;
+            var marker_me;
+            var directionsDisplay=null;
+            var directionsService;
+            var markers=[];
+            var lat;
+            var lng;
+            var latDes;
+            var lngDes;
+            var textpanel="Eliga un destino en el mapa manteniendo presionado el icono del lugar por un segundo.";
+            var tipomenu=1;
+            var infowindow = null;
+            var contentString="";
+            
+            
+            function MapIni(lat_,lng_){
+                map = new google.maps.Map(document.getElementById('mapcanvas'), {
+                    zoom: 13,             
+                    center: new google.maps.LatLng(lat_,lng_),
+                    mapTypeId: google.maps.MapTypeId.ROADMAP, 
+                    styles:[{"featureType":"water","stylers":[{"saturation":43},{"lightness":-11},{"hue":"#0088ff"}]},{"featureType":"road","elementType":"geometry.fill","stylers":[{"hue":"#ff0000"},{"saturation":-100},{"lightness":99}]},{"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#808080"},{"lightness":54}]},{"featureType":"landscape.man_made","elementType":"geometry.fill","stylers":[{"color":"#ece2d9"}]},{"featureType":"poi.park","elementType":"geometry.fill","stylers":[{"color":"#ccdca1"}]},{"featureType":"road","elementType":"labels.text.fill","stylers":[{"color":"#767676"}]},{"featureType":"road","elementType":"labels.text.stroke","stylers":[{"color":"#ffffff"}]},{"featureType":"poi","stylers":[{"visibility":"off"}]},{"featureType":"landscape.natural","elementType":"geometry.fill","stylers":[{"visibility":"on"},{"color":"#b8cb93"}]},{"featureType":"poi.park","stylers":[{"visibility":"on"}]},{"featureType":"poi.sports_complex","stylers":[{"visibility":"off"}]},{"featureType":"poi.medical","stylers":[{"visibility":"on"}]},{"featureType":"poi.business","stylers":[{"visibility":"off"}]}],
+                        //{"featureType":"poi","stylers":[{ "visibility": "off" }]}
+                    zoomControl: false,
+                    mapTypeControl: false,        
+                    streetViewControl: false,
+                    overviewMapControl: false
+                });
+
+                marker_me = new google.maps.Marker({
+                    position: new google.maps.LatLng(lat_,lng_),
+                    map: map,
+                    icon:'img/persona.png',
+                    zIndex:999 
+                });
+
+                var homeControlDiv = document.createElement('div');
+                var homeControl = new CenterPosition(homeControlDiv);
+                homeControlDiv.index = 4;
+                map.controls[google.maps.ControlPosition.RIGHT_CENTER].push(homeControlDiv);
+
+                var homeControlDiv2 = document.createElement('div');
+                var homeControl2 = new TypeTransitRoute(homeControlDiv2, map);
+                homeControlDiv2.index = 1;
+                map.controls[google.maps.ControlPosition.TOP_RIGHT].push(homeControlDiv2);
+
+                var homeControlDiv3 = document.createElement('div');
+                var homeControl3 = new EndRoute(homeControlDiv3);
+                homeControlDiv3.index = 3;
+                map.controls[google.maps.ControlPosition.RIGHT_CENTER].push(homeControlDiv3)
+
+                var homeControlDiv4 = document.createElement('div');
+                var homeControl4 = new ZoomIn(homeControlDiv4);
+                homeControlDiv4.index = 1;
+                map.controls[google.maps.ControlPosition.RIGHT_CENTER].push(homeControlDiv4)
+
+                var homeControlDiv5 = document.createElement('div');
+                var homeControl5 = new ZoomOut(homeControlDiv5);
+                homeControlDiv5.index = 2;
+                map.controls[google.maps.ControlPosition.RIGHT_CENTER].push(homeControlDiv5)
+
+                google.maps.event.addListener(map, 'zoom_changed', function() {
+                    if (map.getZoom() < 7){
+                        map.setZoom(7);
+                    }
+                    else
+                        if(map.getZoom() > 17){
+                            map.setZoom(17);
+                        }
+                });
+            }
+
+            function drawmarkers(value){
+                var idinfo=-1;
+                var leftside;
+                var numdiv=0;
+
+                if(watchID != null){
+                    clearWatch();
+                }
+
+                if(directionsDisplay != null){
+                    directionsDisplay.setMap(null);
+                }
+                
+                if(markers.length != 0){
+                    for (var i = 0; i < markers.length; i++) {
+                        markers[i].setMap(null);
+                    }
+                }
+                
+                var info;                
+                switch (value){
+                    case "Bencineras":
+                    case "Deportivos":
+                        info = 1; 
+                        break;
+                    case "Farmacias":
+                    case "Culturales":
+                        info = 2;
+                        break;
+                    case "Reciclaje":
+                    case "Emprendimiento":
+                        info = 3;
+                        break;
+                    case "Hoteles":
+                        info = 4;
+                        break;
+                    case "Cultura y Turismo":
+                        info = 5;
+                        break;
+                    case "Emergencia":
+                        info = 6;
+                        break;
+                    case "Deportes":
+                        info = 7;
+                        break;
+                    case "Comida":
+                        info = 8;
+                        break;
+                    default:
+                        alert("No existe este elemento");
+                }
+
+                $.ajax({ 
+                    url:'http://www.smartsouth.cl/bd/send.php?callback=?', 
+                    type:'GET', 
+                    data:{tipo:info, menu:tipomenu},
+                    async: false,
+                    jsonpCallback: 'informacion',
+                    contentType: "application/json", 
+                    dataType:'jsonp', 
+                    timeout:60000,
+                    error:function(e){ alert(e.message);}, 
+                    success:function(data){ 
+                        //alert(data.location[1].id_servicios);
+                        markers = [];
+                        //alert(data.location.length);
+                        infowindow = new google.maps.InfoWindow({
+                            maxWidth: 190
+                        });
+
+                        directionsDisplay = new google.maps.DirectionsRenderer();
+                        directionsService = new google.maps.DirectionsService();
+                        var llavepaso;
+
+                        if(tipomenu == 2){
+                            idinfo = data.location[0].lugar_eventos;
+                        }
+                        else{
+                            if(tipomenu == 1){
+                                llavepaso = 0;
+                            }
+                        }
+
+                        for (var i = 0; i < data.location.length; i++) {
+                            var myLatLng = new google.maps.LatLng(data.location[i].lat_servicios,data.location[i].lng_servicios);
+                            var marker = new google.maps.Marker({
+                                position: myLatLng,
+                                map: map,                        
+                                zIndex:998,
+                                icon:data.location[i].img_servicios                   
+                            });
+                                                    
+                            markers.push(marker);                            
+                            
+                            if(tipomenu == 1){
+                                if(data.location[i].telefono_servicios == null){
+                                    data.location[i].telefono_servicios="";
+                                }
+                                if(data.location[i].email_servicios == null){
+                                    data.location[i].email_servicios="";
+                                }
+                                if(data.location[i].detalles_servicios == null){
+                                    data.location[i].detalles_servicios="";
+                                }
+
+                                contentString = '<div class="ventanageneral" style="overflow:hidden;"><p>'+data.location[i].nombre_servicios+'</p><p>Detalles:<br>'+data.location[i].detalles_servicios+'</p><p>Telefono:'+data.location[i].telefono_servicios+'</p><p>Email:'+data.location[i].email_servicios+'</p></div>';  
+                            }
+                            else{
+                                if(tipomenu == 2){
+                                    if(idinfo != data.location[i].lugar_eventos){
+                                        idinfo = data.location[i].lugar_eventos;
+                                        contentString = '<div class="container"><div class="ventanainfo ventanageneral"><p>'+data.location[i].nombre_eventos+'</p><p>Desde:'+data.location[i].fecha_inicio_eventos+'</p><p>Hasta:'+data.location[i].fecha_final_eventos+'</p><p>Detalles:<br>'+data.location[i].detalles_eventos+'</p></div>';
+                                        numdiv++;
+                                        if((i + 1) != data.location.length){
+                                            if(idinfo != data.location[i+1].lugar_eventos){
+                                                llavepaso = 0;
+                                                contentString += '</div>';
+                                                if(numdiv > 1){
+                                                    contentString = [contentString.slice(0,35),"primerdiv ",contentString.slice(35)].join('');
+                                                }
+                                                else{
+                                                    if(numdiv == 1){
+                                                        contentString = ['<div class="',contentString.slice(47)].join('');
+                                                    }
+                                                }
+                                                numdiv=0;
+                                            }
+                                            else{
+                                                llavepaso = 1;
+                                            }
+                                        }
+                                        else{
+                                            llavepaso = 0;
+                                            contentString += '</div>';
+                                            if(numdiv > 1){
+                                                contentString = [contentString.slice(0,35),"primerdiv ",contentString.slice(35)].join('');
+                                            }
+                                            else{
+                                                if(numdiv == 1){
+                                                    contentString = ['<div class="',contentString.slice(47)].join('');
+                                                }
+                                            }
+                                            numdiv=0;
+                                        }
+                                    }
+                                    else{
+                                        if(idinfo == data.location[i].lugar_eventos){
+                                            if(i == 0){
+                                                contentString = '<div class="container">';
+                                            }
+                                            contentString += '<div class="ventanainfo ventanageneral"><p>'+data.location[i].nombre_eventos+'</p><p>Desde:'+data.location[i].fecha_inicio_eventos+'</p><p>Hasta:'+data.location[i].fecha_final_eventos+'</p><p>Detalles:<br>'+data.location[i].detalles_eventos+'</p></div>';
+                                            numdiv++;
+                                        }
+
+                                        if((i + 1) != data.location.length){
+                                            if(idinfo != data.location[i+1].lugar_eventos){
+                                                llavepaso = 0;
+                                                contentString += '</div>';
+                                                if(numdiv > 1){
+                                                    contentString = [contentString.slice(0,35),"primerdiv ",contentString.slice(35)].join('');
+                                                    contentString = [contentString.slice(0,23),'Hay '+numdiv+' eventos.',contentString.slice(23)].join('');
+                                                }
+                                                else{
+                                                    if(numdiv == 1){
+                                                        contentString = ['<div class="',contentString.slice(47)].join('');
+                                                    }
+                                                }
+                                                numdiv=0;
+                                            }
+                                            else{
+                                                llavepaso = 1;
+                                            }
+                                        }
+                                        else{
+                                            llavepaso = 0;
+                                            contentString += '</div>';
+                                            if(numdiv > 1){
+                                                contentString = [contentString.slice(0,35),"primerdiv ",contentString.slice(35)].join('');
+                                            }
+                                            else{
+                                                if(numdiv == 1){
+                                                    contentString = ['<div class="',contentString.slice(47)].join('');
+                                                }
+                                            }
+                                            numdiv=0;
+                                        }
+                                    }
+                                }
+                            }
+                            if(llavepaso == 0){
+                                google.maps.event.addListener(marker, 'click', (function(marker,contentString) {
+                                    return function() {
+                                        infowindow.setContent(contentString);
+                                        infowindow.open(map, marker);
+                                    }
+                                })(marker,contentString));
+                                            
+                                new LongClick(marker, 300);
+                                google.maps.event.addListener(marker, 'longpress', (function(marker, i) {
+                                    return function() {
+                                        directionsDisplay.setMap(null);
+                                        TraceRoute(data.location[i].lat_servicios,data.location[i].lng_servicios,directionsDisplay,directionsService);
+                                    }
+                                })(marker, i));
+                            }
+                        }
+                    } 
+                });               
+            }
+
+            function TypeTransitRoute(controlDiv){
+                // Set CSS styles for the DIV containing the control
+              // Setting padding to 5 px will offset the control
+              // from the edge of the map
+              controlDiv.style.padding = '1%';
+
+              // Set CSS for the control border
+              var controlUI2 = document.createElement('div');
+              controlUI2.id ="control5";
+              controlUI2.style.cursor = 'pointer';
+              controlUI2.style.textAlign = 'center';
+              controlDiv.appendChild(controlUI2);
+
+              // Set CSS for the control interior
+              var controlText = document.createElement('div');
+              controlText.style.fontFamily = 'Arial,sans-serif';
+              controlText.style.fontSize = '1.3em';
+              controlText.innerHTML = '<select id="tipoviaje"><option value="DRIVING" selected="selected">Automovil</option><option value="TRANSIT">Locomoción</option><option value="WALKING">Caminando</option></select>';
+              controlUI2.appendChild(controlText);
+
+              // Setup the click event listeners: simply set the map to
+              // Chicago
+              //google.maps.event.addDomListener(controlUI2, 'click', function() {    
+                
+              //});
+            }
+            function CenterPosition(controlDiv) {
+
+              // Set CSS styles for the DIV containing the control
+              // Setting padding to 5 px will offset the control
+              // from the edge of the map
+              controlDiv.style.padding = '2%';
+
+              // Set CSS for the control border
+              var controlUI = document.createElement('div');
+              controlUI.id ="control4";
+              controlUI.className ="iconos";
+              controlUI.style.cursor = 'pointer';
+              controlUI.style.textAlign = 'right';
+              controlDiv.appendChild(controlUI);
+
+              // Set CSS for the control interior
+              var controlText = document.createElement('div');
+              controlText.innerHTML = '<img src="img/centrarimagen.png"  height="40em" width="40em">';
+              controlUI.appendChild(controlText);
+
+              // Setup the click event listeners: simply set the map to
+              // Chicago            
+              google.maps.event.addDomListener(controlUI, 'mousedown', function() {  
+                document.getElementById("control4").style.opacity="1";
+              });
+              google.maps.event.addDomListener(controlUI, 'mouseover', function() {  
+                document.getElementById("control4").style.opacity="0.2";
+              });
+
+              google.maps.event.addDomListener(controlUI, 'click', function() {
+                navigator.geolocation.getCurrentPosition(function(position){                    
+                    lat = position.coords.latitude;
+                    lng = position.coords.longitude;
+                    map.setCenter(new google.maps.LatLng(lat,lng));
+                    marker_me.setPosition(new google.maps.LatLng(lat,lng));
+                }
+                , onError,
+                {enableHighAccuracy: true});    
+              });
+
+            }
+            function EndRoute(controlDiv) {
+
+              // Set CSS styles for the DIV containing the control
+              // Setting padding will offset the control
+              // from the edge of the map
+              controlDiv.style.padding = '2%';
+
+              // Set CSS for the control border
+              var controlUI = document.createElement('div');
+              controlUI.id ="control3";
+              controlUI.style.cursor = 'pointer';
+              controlUI.style.textAlign = 'right';
+              controlDiv.appendChild(controlUI);
+
+              // Set CSS for the control interior
+              var controlText = document.createElement('div');
+              controlText.innerHTML = '<img src="img/detener.png"  height="40em" width="40em">';
+              controlUI.appendChild(controlText);
+
+              // Setup the click event listeners: simply set the map to
+              // Chicago
+              google.maps.event.addDomListener(controlUI, 'mousedown', function() {  
+                document.getElementById("control3").style.opacity="1"
+              });
+              google.maps.event.addDomListener(controlUI, 'mouseover', function() {  
+                document.getElementById("control3").style.opacity="0.2"
+              });
+
+              google.maps.event.addDomListener(controlUI, 'click', function() {  
+                clearWatch();
+                directionsDisplay.setMap(null);
+                $("#envoltoriomenu2").html(textpanel);                
+              });
+            }
+            function ZoomIn(controlDiv) {
+
+              // Set CSS styles for the DIV containing the control
+              // Setting padding will offset the control
+              // from the edge of the map
+              controlDiv.style.padding = '2%';
+
+              // Set CSS for the control border
+              var controlUI = document.createElement('div');
+              controlUI.id ="control1";
+              controlUI.className ="iconos";
+              controlUI.style.cursor = 'pointer';
+              controlUI.style.textAlign = 'right';
+              controlDiv.appendChild(controlUI);
+
+              // Set CSS for the control interior
+              var controlText = document.createElement('div');
+              controlText.innerHTML = '<img src="img/zoomin.png"  height="40em" width="40em">';
+              controlUI.appendChild(controlText);
+
+              // Setup the click event listeners: simply set the map to
+              // Chicago
+              google.maps.event.addDomListener(controlUI, 'mousedown', function() {  
+                document.getElementById("control1").style.opacity="1"
+              });
+              google.maps.event.addDomListener(controlUI, 'mouseover', function() {  
+                document.getElementById("control1").style.opacity="0.2"
+              });
+              google.maps.event.addDomListener(controlUI, 'click', function() {
+                if(map.getZoom() != 21){
+                    map.setZoom(map.getZoom() + 1);
+                    $( "#mapcanvas" ).click();
+                } 
+              });
+            }
+            function ZoomOut(controlDiv) {
+
+              // Set CSS styles for the DIV containing the control
+              // Setting padding will offset the control
+              // from the edge of the map
+              controlDiv.style.padding = '2%';
+
+              // Set CSS for the control border
+              var controlUI = document.createElement('div');
+              controlUI.id ="control2";
+              controlUI.className ="iconos";
+              controlUI.style.cursor = 'pointer';
+              controlUI.style.textAlign = 'right';
+              controlDiv.appendChild(controlUI);
+
+              // Set CSS for the control interior
+              var controlText = document.createElement('div');
+              controlText.innerHTML = '<img src="img/zoomout.png"  height="40em" width="40em">';
+              controlUI.appendChild(controlText);
+
+              // Setup the click event listeners: simply set the map to
+              // Chicago
+              google.maps.event.addDomListener(controlUI, 'mousedown', function() {  
+                document.getElementById("control2").style.opacity="1"
+              });
+              google.maps.event.addDomListener(controlUI, 'mouseover', function() {  
+                document.getElementById("control2").style.opacity="0.2"
+              });
+              google.maps.event.addDomListener(controlUI, 'click', function() {
+                if(map.getZoom() != 0){
+                    map.setZoom(map.getZoom() - 1);
+                } 
+              });
+            }
+            function MapHeight() {
+                var header = $.mobile.activePage.find("div[data-role='header']:visible");
+                var footer = $.mobile.activePage.find("div[data-role='footer']:visible");
+                var content = $.mobile.activePage.find("div[data-role='content']:visible:visible");
+                var viewport_height = $(window).height();
+                    
+                var map_height = viewport_height - header.outerHeight() - footer.outerHeight();
+                if((content.outerHeight() - header.outerHeight() - footer.outerHeight()) <= viewport_height) {
+                    map_height -= (content.outerHeight() - content.height());
+                }
+                return map_height;
+            }
+
+            function TraceRoute(latDes_,lngDes_,directionsDisplay,directionsService){
+                clearWatch();
+                $("#envoltoriomenu2").html("");
+
+                latDes = latDes_;
+                lngDes = lngDes_;
+
+                var request = {
+                    origin:new google.maps.LatLng(lat,lng),
+                    destination: new google.maps.LatLng(latDes,lngDes),
+                    travelMode: google.maps.TravelMode[$('#tipoviaje').val()],
+                    provideRouteAlternatives: false
+                };
+                directionsService.route(request, function(response, status) {
+                    if (status == google.maps.DirectionsStatus.OK) {
+                        directionsDisplay.setMap(map);
+                        directionsDisplay.setPanel($("#envoltoriomenu2").get(0));                            
+                        directionsDisplay.setDirections(response);
+                        
+                        var optionswatch = { enableHighAccuracy: true };
+                        watchID = navigator.geolocation.watchPosition(UpdateMarker, onError, optionswatch);
+                    }
+                    else {
+                        alert("No existen rutas entre ambos puntos");
+                    }
+                });
+            }
+
+            function UpdateMarker(position){
+                lat = position.coords.latitude;
+                lng = position.coords.longitude;
+                marker_me.setPosition(new google.maps.LatLng(lat,lng));
+                map.panTo(new google.maps.LatLng(lat,lng));
+
+                 if (lat === latDes && lng === lngDes) {        
+                    clearWatch();
+                }
+
+            }
+
+            function clearWatch() {
+                    if (watchID != null) {
+                        navigator.geolocation.clearWatch(watchID);
+                        watchID = null;
+                    }
+            }
+
+            function LongClick(marker, length) {
+                this.length_ = length;
+                var me = this;
+                me.marker_ = marker;
+                google.maps.event.addListener(marker, 'mousedown', function(e) { me.onMouseDown_(e) });
+                google.maps.event.addListener(marker, 'mouseup', function(e) { me.onMouseUp_(e) });   
+            }
+
+            LongClick.prototype.onMouseUp_ = function(e) {
+                var now = +new Date;
+                if (now - this.down_ > this.length_) {
+                    //navigator.notification.vibrate(200);
+                    google.maps.event.trigger(this.marker_, 'longpress', e);        
+                }   
+            }
+
+            LongClick.prototype.onMouseDown_ = function() {
+                this.down_ = +new Date;   
+            }
+
+            function onError(error) { 
+                alert('code: '    + error.code    + '\n' + 'message: ' + error.message + '\n');
+            }
+            
+            function onOffline(){
+                alert("Debe conectarse a una red para usar la aplicación");
+            }
+            document.addEventListener("offline", onOffline, false);
+
+            $(document).on('click', '.ventanainfo', function(event){
+                $(this).animate({
+                    left: '-50%'
+                }, 200, function() {
+                    $(this).css('left', '100%');
+                    $(this).appendTo('.container');
+                });
+
+                $(this).next().animate({
+                    left: '1%'
+                }, 200);
+            });
+            $(document).on('pageshow', '#mapaprincipal',function(e,data){
+                $('#content').height(MapHeight());
+                navigator.geolocation.getCurrentPosition(onSuccess, onError,{enableHighAccuracy: true}); 
+                function onSuccess(position) {
+                    lat = position.coords.latitude;
+                    lng = position.coords.longitude;
+                    MapIni(position.coords.latitude,position.coords.longitude); 
+                }
+                $("ul.activarmapa li").on("click",function(){
+                    drawmarkers($(this).text());
+                });
+
+                $("#menuservicios").on("click",function(){
+                    $("#envoltoriomenu").html("<ul class='activarmapa' id='lista1' data-role='listview' data-inset='true'><li><a href='#'>Bencineras</a></li><li><a href='#'>Comida</a></li><li><a href='#'>Cultura y Turismo</a></li><li><a href='#'>Deportes</a></li><li><a href='#'>Emergencia</a></li><li><a href='#'>Farmacias</a></li><li><a href='#'>Hoteles</a></li><li><a href='#'>Reciclaje</a></li></ul>");
+                    $('#lista1').listview().listview('refresh');
+                    $('#lista1').on("click","li",function(){
+                        tipomenu=1;
+                        drawmarkers($(this).text());
+                    });
+                    $("#envoltoriomenu2").html("Eliga un destino en el mapa manteniendo presionado el icono del lugar por un segundo.");
+                    textpanel="Eliga un destino en el mapa manteniendo presionado el icono del lugar por un segundo.";
+
+                });
+
+                $("#menueventos").on("click",function(){
+                    $("#envoltoriomenu").html("<ul id='lista2' data-role='listview' data-inset='true'><li><a href='#'>Culturales</a></li><li><a href='#'>Deportivos</a></li><li><a href='#'>Emprendimiento</a></li></ul>");
+                    $('#lista2').listview().listview('refresh');
+                    $('#lista2').on("click","li",function(){
+                        tipomenu=2;
+                        drawmarkers($(this).text());                        
+                    });
+                    $("#envoltoriomenu2").html("Eliga un evento en el mapa manteniendo presionado el icono del lugar por un segundo.");
+                    textpanel="Eliga un evento en el mapa manteniendo presionado el icono del lugar por un segundo.";
+                });
+
+                $("#menualertas").on("click",function(){
+                    $("#envoltoriomenu").html("<ul id='lista3' data-role='listview' data-inset='true'><li><a href='#'>Alerta1</a></li><li><a href='#'>Alerta2</a></li></ul>");
+                    $('#lista3').listview().listview('refresh');
+                    $('#lista3').on("click","li",function(){
+                        
+                    });
+                    $("#envoltoriomenu2").html("3");
+                });
+
+                $("#menuinformacion").on("click",function(){
+                    $("#envoltoriomenu").html("Seleccione Servicios o Eventos en el menu.");
+                });                
+            });
+            
+        </script>
+        <title>iLosLagos</title>
+    </head>
+    <!-- MODELO PAGINA JQUERY MOBILE
+    <div data-role="page">
+        <div data-role="header">                
+            <h1>AlToKe</h1>
+        </div>
+        <div data-role="content" role="main">
+            <p>Contenido</p>
+        </div>
+        <div data-role="footer" data-position="fixed">
+            <h3>
+                Menu Inferior
+            </h3>
+        </div>
+    </div>
+    -->
+    <body >
+        <!--Pagina Principal-->
+        <div data-role="page" id="mapaprincipal" data-theme="a">
+            <div data-role="panel" id="panelizq" data-position="left" data-display="overlay">
+                <a href="#panelizq" class="ui-btn ui-icon-back ui-btn-icon-right">Volver</a>
+                <div id="envoltoriomenu">
+                    <ul class="activarmapa" id="lista1" data-role="listview" data-inset="true">
+                        <li><a href='#'>Bencineras</a></li>
+                        <li><a href='#'>Comida</a></li>
+                        <li><a href='#'>Cultura y Turismo</a></li>
+                        <li><a href='#'>Deportes</a></li>
+                        <li><a href='#'>Emergencia</a></li>
+                        <li><a href='#'>Farmacias</a></li>
+                        <li><a href='#'>Hoteles</a></li>
+                        <li><a href='#'>Reciclaje</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div data-role="panel" id="panelder" data-position="right" data-display="overlay">
+                <a href="#panelder" class="ui-btn ui-icon-back ui-btn-icon-left">Volver</a>
+                <p>En este panel aparecera la ruta calculada para su viaje.</p>
+                <div id="envoltoriomenu2">
+                    <p>Eliga un destino en el mapa manteniendo presionado el icono del lugar por un segundo.</p>
+                </div>
+            </div> 
+            <div data-role="header">                
+                <h1>iLosLagos</h1>
+                <a data-iconpos="notext" href="#panelizq" data-role="button" data-icon="search"></a>
+                <a data-iconpos="notext" href="#panelder" data-role="button" data-icon="navigation"></a>
+                <div data-role="navbar">
+                    <ul>
+                        <li> <a href="#" id="menuservicios" data-icon="grid" class="ui-btn-active ui-state-persist">Servicios</a> </li>
+                        <li> <a href="#" id="menueventos" data-icon="comment">Eventos</a> </li>
+                        <li> <a href="#infoPopup" data-rel="popup" data-position-to="window" data-transition="pop" id="menuinformacion" data-icon="info">Informacion</a></li>
+                    </ul>
+                </div>
+                <div data-role="popup" id="infoPopup" class="ui-content">
+                    <p>iLosLagos v 0.1</p>
+                    <p>Desarrollado por:</p>
+                    <img alt="SS" src="img/logo2.png">
+                    <p><span class="azul">Smart</span><span class="verde">South</span></p>
+                    <p><a id="url1" href="http://www.smartsouth.cl" target="_blank" onclick="window.open('http://www.smartsouth.cl', '_system', 'location=yes');return false;">www.smartsouth.cl</a></p>
+                    <p><a id="url3" href="mailto:iloslagos@smartsouth.cl" >iloslagos@smartsouth.cl</a></p>
+                    <p>Reportar error <a id="url2" href="https://docs.google.com/forms/d/1lq-1CRZWnbyt9XqKxB_7IgpaTeXPn_YquhmdSW7Bjbc/viewform?c=0&w=1&usp=mail_form_link" target="_blank" onclick="window.open('https://docs.google.com/forms/d/1lq-1CRZWnbyt9XqKxB_7IgpaTeXPn_YquhmdSW7Bjbc/viewform?c=0&w=1&usp=mail_form_link', '_system', 'location=yes');return false;">aqui.</a></p>
+                </div>
+            </div>                        
+            <div data-role="content" id="content">
+                <div id="mapcanvas" style="height:100%"></div>
+            </div>
+        </div>
+    </body>
+</html>
